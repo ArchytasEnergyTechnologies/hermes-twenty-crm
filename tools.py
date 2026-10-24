@@ -49,8 +49,21 @@ def _json(data: dict[str, Any]) -> str:
 
 
 def _env(name: str, default: str | None = None) -> str | None:
-    value = os.getenv(name)
+    try:
+        from agent.secret_scope import get_secret
+    except ImportError:  # Older Hermes versions have no profile secret API.
+        value = os.getenv(name)
+    else:
+        value = get_secret(name)
     return value.strip() if value and value.strip() else default
+
+
+def _home() -> Path:
+    try:
+        from hermes_constants import get_hermes_home
+    except ImportError:  # Older Hermes versions have no profile home API.
+        return Path(os.getenv("HERMES_HOME", Path.home() / ".hermes"))
+    return get_hermes_home()
 
 
 def _base_url() -> str:
@@ -81,7 +94,7 @@ def _configured_auth_modes() -> list[str]:
 
 
 def _token_cache_path() -> Path:
-    home = Path(os.getenv("HERMES_HOME", Path.home() / ".hermes"))
+    home = _home()
     path = home / "cache" / "twenty-crm-oauth.json"
     path.parent.mkdir(parents=True, exist_ok=True)
     return path

@@ -92,8 +92,21 @@ volumes:
 
 
 def _env(name: str, default: str | None = None) -> str | None:
-    value = os.getenv(name)
+    try:
+        from agent.secret_scope import get_secret
+    except ImportError:  # Older Hermes versions have no profile secret API.
+        value = os.getenv(name)
+    else:
+        value = get_secret(name)
     return value.strip() if value and value.strip() else default
+
+
+def _home() -> Path:
+    try:
+        from hermes_constants import get_hermes_home
+    except ImportError:  # Older Hermes versions have no profile home API.
+        return Path(_env("HERMES_HOME") or (Path.home() / ".hermes")).expanduser()
+    return get_hermes_home()
 
 
 def _truthy(value: str | None) -> bool:
@@ -101,7 +114,7 @@ def _truthy(value: str | None) -> bool:
 
 
 def hermes_home() -> Path:
-    return Path(_env("HERMES_HOME") or (Path.home() / ".hermes")).expanduser()
+    return _home()
 
 
 def connection_mode() -> str:
